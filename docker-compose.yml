@@ -1,0 +1,51 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: pathfinder-ollama
+    ports:
+      - "11434:11434"
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    environment:
+      - OLLAMA_LLM_LIBRARY=vulkan
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pathfinder-worker
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - PDFS_DIR=/app/pdfs
+      - DATA_DIR=/app/data
+      - EMBEDDING_BACKEND=sentence-transformers
+      - EMBEDDING_MODEL=intfloat/multilingual-e5-small
+      - EMBEDDING_DEVICE=cpu
+      - SENTENCE_TRANSFORMERS_HOME=/app/models
+      - CUDA_VISIBLE_DEVICES=""
+      - ROCR_VISIBLE_DEVICES=""
+      - HSA_OVERRIDE_GFX_VERSION=10.3.0
+    volumes:
+      - ./pdfs:/app/pdfs:ro
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./rag:/app/rag
+      - ./cache:/root/.cache
+    working_dir: /app
+    stdin_open: true
+    tty: true
+
+volumes:
+  ollama_data:

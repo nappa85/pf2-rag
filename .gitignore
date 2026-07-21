@@ -1,0 +1,6 @@
+data/
+models/
+cache/
+pdfs/
+*.pdf
+rag/__pycache__/
