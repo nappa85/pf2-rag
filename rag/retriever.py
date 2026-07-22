@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import faiss
@@ -176,8 +177,11 @@ class HybridRetriever:
     ) -> list[dict]:
         effective_query = self._expand_query(query) if expand else query
 
-        dense_results = self._dense_search(effective_query, k=max(DENSE_K, top_k * 3))
-        bm25_results = self._bm25_search(effective_query, k=max(BM25_K, top_k * 3))
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_dense = pool.submit(self._dense_search, effective_query, k=max(DENSE_K, top_k * 3))
+            f_bm25 = pool.submit(self._bm25_search, effective_query, k=max(BM25_K, top_k * 3))
+            dense_results = f_dense.result()
+            bm25_results = f_bm25.result()
 
         merged = self._rrf_merge(dense_results, bm25_results, k=RRF_K, alpha=alpha)
 

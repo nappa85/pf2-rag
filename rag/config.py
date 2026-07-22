@@ -7,7 +7,7 @@ CHUNKS_PATH = os.path.join(DATA_DIR, "chunks", "chunks.jsonl")
 INDEX_DIR = os.path.join(DATA_DIR, "index")
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:14b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
 
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 EMBEDDING_DIM = 384
