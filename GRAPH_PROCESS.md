@@ -5,7 +5,7 @@
 A traversable, queryable knowledge graph of abilities, talents, spells, classes, and stirpi from the Italian Pathfinder 2nd Edition rulebooks, built with [graphify](https://pypi.org/project/graphify/).
 
 **Current coverage:** Manuale di Gioco (core rulebook).  
-**Graph stats:** 1493 nodes, 5158 edges, 82 communities.
+**Graph stats:** 1625 nodes, 5736 edges, 73 communities.
 
 ## Directory Layout
 
@@ -33,7 +33,7 @@ pathfinder/
 
 | File | Lines | Content |
 |------|-------|---------|
-| Manuale di Gioco.md | ~51K | Core rulebook: 12 classes, 6 stirpi, 702 spells, 741 talents |
+| Manuale di Gioco.md | ~51K | Core rulebook: 12 classes, 6 stirpi, 702 spells, 150 focus spells, 741 talents |
 | Guida del Giocatore.md | ~20K | 4 new classes, 5 new stirpi, 26 archetypes, new spells |
 | Guida del Game Master.md | — | GM rules (not yet extracted) |
 | Bestiario.md | — | Monsters (not yet extracted) |
@@ -66,6 +66,7 @@ Extracts from `Manuale di Gioco.md`:
 - 18 abilità
 - ~741 talenti (with level metadata, linked to class/stirpe by line ranges)
 - ~702 incantesimi (from spell chapter, lines 21137+)
+- ~150 incantesimi focalizzati (from spell chapter, pattern `**NAME FOCALIZZATO N**`)
 - Condizioni, Azioni, Tratti
 - Subclass concepts (barbarian instincts, druid orders, bard muses, etc.)
 - Prerequisite cross-references (talento → abilità/classe/stirpe)
@@ -304,6 +305,8 @@ where `normalized_label` is lowercase, non-alphanumeric replaced with `_`, strip
 
 ## Known Issues
 
+- **Focus spells** — 150 focus spells are now extracted from the spell chapter (pattern `**NAME FOCALIZZATO N**`). They are linked to their class and tradition, and to the `Incantesimi Focalizzati` hub node. However, school extraction from focus spell entries is partial (only when the school code appears on the same line).
+- **Spell level communities** — Spell level nodes (1°-10°) were initially scattered across 8+ communities. Bidirectional `conceptually_related_to` edges between consecutive levels and to the `Incantesimi` hub now keep them in 2 communities (0 and 32).
 - **Bardo class range** — The PDF extraction places Bardo class content at lines 5699-6438 (between Barbaro and Campione), while the `# Bardo` heading at line 15553 is the archetype multiclass section. The `class_ranges` must use 5699-6438 for Bardo, not 15553-16412.
 - **Talent pattern3** — Many talents use `**NAME TALENTO N**` (name and TALENTO inside same bold markers), not `**NAME** TALENTO N`. Pattern3 (`\*\*([^*]{3,70}?)\s+TALENTO\s+(\d+)\*\*`) was added to catch 584 previously missed talents.
 - **Spell names** have stray characters from PDF extraction: trailing `'`, superscript markers (`i`, `N`, `R`). Partially cleaned in step 2.
