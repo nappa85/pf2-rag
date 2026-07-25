@@ -4,3 +4,6 @@ cache/
 pdfs/
 *.pdf
 rag/__pycache__/
+
+# Graphify generated outputs (rebuilt from scripts)
+graphify-out/
