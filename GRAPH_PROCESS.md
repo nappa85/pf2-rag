@@ -5,7 +5,7 @@
 A traversable, queryable knowledge graph of abilities, talents, spells, classes, and stirpi from the Italian Pathfinder 2nd Edition rulebooks, built with [graphify](https://pypi.org/project/graphify/).
 
 **Current coverage:** Manuale di Gioco (core rulebook).  
-**Graph stats:** 930 nodes, 4234 edges, 26 communities.
+**Graph stats:** 1493 nodes, 5158 edges, 82 communities.
 
 ## Directory Layout
 
@@ -33,7 +33,7 @@ pathfinder/
 
 | File | Lines | Content |
 |------|-------|---------|
-| Manuale di Gioco.md | ~51K | Core rulebook: 12 classes, 6 stirpi, 702 spells, 210 talents |
+| Manuale di Gioco.md | ~51K | Core rulebook: 12 classes, 6 stirpi, 702 spells, 741 talents |
 | Guida del Giocatore.md | ~20K | 4 new classes, 5 new stirpi, 26 archetypes, new spells |
 | Guida del Game Master.md | — | GM rules (not yet extracted) |
 | Bestiario.md | — | Monsters (not yet extracted) |
@@ -64,7 +64,7 @@ Extracts from `Manuale di Gioco.md`:
 - 6 stirpi (Nano, Elfo, Gnomo, Goblin, Halfling, Umano)
 - 12 classi with key characteristics and traditions
 - 18 abilità
-- ~210 talenti (with level metadata, linked to class/stirpe by line ranges)
+- ~741 talenti (with level metadata, linked to class/stirpe by line ranges)
 - ~702 incantesimi (from spell chapter, lines 21137+)
 - Condizioni, Azioni, Tratti
 - Subclass concepts (barbarian instincts, druid orders, bard muses, etc.)
@@ -304,6 +304,8 @@ where `normalized_label` is lowercase, non-alphanumeric replaced with `_`, strip
 
 ## Known Issues
 
+- **Bardo class range** — The PDF extraction places Bardo class content at lines 5699-6438 (between Barbaro and Campione), while the `# Bardo` heading at line 15553 is the archetype multiclass section. The `class_ranges` must use 5699-6438 for Bardo, not 15553-16412.
+- **Talent pattern3** — Many talents use `**NAME TALENTO N**` (name and TALENTO inside same bold markers), not `**NAME** TALENTO N`. Pattern3 (`\*\*([^*]{3,70}?)\s+TALENTO\s+(\d+)\*\*`) was added to catch 584 previously missed talents.
 - **Spell names** have stray characters from PDF extraction: trailing `'`, superscript markers (`i`, `N`, `R`). Partially cleaned in step 2.
 - **Bardo/Stregone** share both Arcano and Occulto traditions; the graph links them to spells from both.
 - **Alchimista** is not a spellcaster but gets linked to level 1 (for class features).

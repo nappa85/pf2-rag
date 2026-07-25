@@ -33,10 +33,14 @@ talento_p2 = re.compile(
     r"\*\*([^*]{3,70})\*\*\s*\[[^\]]*\]\s*\*\*\s*TALENTO\s+(\d+)",
     re.IGNORECASE,
 )
+talento_p3 = re.compile(
+    r"\*\*([^*]{3,70}?)\s+TALENTO\s+(\d+)\*\*",
+    re.IGNORECASE,
+)
 
 talent_levels = {}
 for line in lines:
-    for pat in (talento_p, talento_p2):
+    for pat in (talento_p, talento_p2, talento_p3):
         for m in pat.finditer(line):
             name = m.group(1).strip()
             level = int(m.group(2))

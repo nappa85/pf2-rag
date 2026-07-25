@@ -127,6 +127,12 @@ talento_pattern2 = re.compile(
     re.IGNORECASE
 )
 
+# Also: **NAME TALENTO N** (name and TALENTO inside same bold markers)
+talento_pattern3 = re.compile(
+    r'\*\*([^*]{3,70}?)\s+TALENTO\s+(\d+)\*\*',
+    re.IGNORECASE
+)
+
 # Build line-range map for stirpe sections
 stirpe_ranges = [
     ("Elfo", 1442, 1722),
@@ -137,10 +143,13 @@ stirpe_ranges = [
     ("Umano", 2842, 3867),
 ]
 # Build line-range map for class sections
+# NOTE: Bardo class content is at lines 5699-6438 (between Barbaro and Campione
+# in the PDF extraction), even though the # Bardo heading appears at line 15553
+# (which is the archetype multiclass section).
 class_ranges = [
     ("Alchimista", 3867, 4717),
-    ("Barbaro", 4717, 6438),
-    ("Bardo", 15553, 16412),
+    ("Barbaro", 4717, 5675),
+    ("Bardo", 5699, 6438),
     ("Campione", 6438, 7398),
     ("Canaglia", 7398, 8312),
     ("Chierico", 8312, 9255),
@@ -177,8 +186,8 @@ for i, line in enumerate(lines):
             current_class = None
             break
 
-    # Extract talenti (both patterns)
-    for pat in (talento_pattern, talento_pattern2):
+    # Extract talenti (all three patterns)
+    for pat in (talento_pattern, talento_pattern2, talento_pattern3):
         for m in pat.finditer(line):
             name = m.group(1).strip()
             level = int(m.group(2))
