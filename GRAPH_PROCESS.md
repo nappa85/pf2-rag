@@ -5,7 +5,7 @@
 A traversable, queryable knowledge graph of abilities, talents, spells, classes, and stirpi from the Italian Pathfinder 2nd Edition rulebooks, built with [graphify](https://pypi.org/project/graphify/).
 
 **Current coverage:** Manuale di Gioco (core rulebook).  
-**Graph stats:** 1625 nodes, 5736 edges, 73 communities.
+**Graph stats:** 1625 nodes, 5848 edges, 73 communities.
 
 ## Directory Layout
 
