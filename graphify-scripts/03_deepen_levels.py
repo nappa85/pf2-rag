@@ -419,6 +419,146 @@ for n in graph["nodes"]:
                 break
 
 # =================================================================
+# 8. CLASS-SPECIFIC TALENT LEVEL NODES
+# =================================================================
+# Generic talent level hubs (e.g. "Talento di 6° Livello") cause unrelated
+# class talents to cluster together in the same community. Creating
+# class-specific variants (e.g. "Talento di 6° Livello (Guerriero)") fixes this.
+CLASS_NAMES = ["Alchimista", "Barbaro", "Bardo", "Campione", "Canaglia", "Chierico",
+               "Druido", "Guerriero", "Mago", "Monaco", "Ranger", "Stregone"]
+STIRPI = ["Elfo", "Gnomo", "Goblin", "Halfling", "Nano", "Umano"]
+
+class_talent_level_ids = {}
+for cls in CLASS_NAMES:
+    for lv in [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20]:
+        label = f"Talento di {lv}° Livello ({cls})"
+        nid = ensure_node(label)
+        class_talent_level_ids[(cls, lv)] = nid
+        if cls in class_node_ids:
+            add_edge(nid, class_node_ids[cls], "conceptually_related_to", "INFERRED", 0.9)
+        if lv in talent_level_ids:
+            add_edge(nid, talent_level_ids[lv], "conceptually_related_to", "INFERRED", 0.8)
+
+stirpe_talent_level_ids = {}
+for sp in STIRPI:
+    for lv in [1, 5, 9, 13, 17]:
+        label = f"Talento di Stirpe di {lv}° Livello ({sp})"
+        nid = ensure_node(label)
+        stirpe_talent_level_ids[(sp, lv)] = nid
+        sp_lower = sp.lower()
+        if sp_lower in existing_by_label:
+            add_edge(nid, existing_by_label[sp_lower]["id"], "conceptually_related_to", "INFERRED", 0.9)
+        if lv in stirpe_talent_ids:
+            add_edge(nid, stirpe_talent_ids[lv], "conceptually_related_to", "INFERRED", 0.8)
+
+# Build talent→class mapping from existing edges
+stirpe_node_ids = {sp.lower(): existing_by_label[sp.lower()]["id"] for sp in STIRPI if sp.lower() in existing_by_label}
+stirpe_id_set = set(stirpe_node_ids.values())
+class_id_set = set(class_node_ids.values())
+
+talent_to_class = {}
+talent_to_stirpe = {}
+for e in graph["links"]:
+    if e["relation"] == "conceptually_related_to":
+        if e["target"] in class_id_set:
+            talent_to_class[e["source"]] = e["target"]
+        elif e["target"] in stirpe_id_set:
+            talent_to_stirpe[e["source"]] = e["target"]
+
+class_id_to_name = {v: k for k, v in class_node_ids.items()}
+stirpe_id_to_name = {v: k.split()[0].title() for k, v in stirpe_node_ids.items() if v in stirpe_id_set}
+
+# Re-wire has_talent_level edges to class-specific versions
+old_has_indices = []
+new_has_edges = []
+for i, e in enumerate(graph["links"]):
+    if e["relation"] != "has_talent_level":
+        continue
+    old_has_indices.append(i)
+    talent_id = e["source"]
+    old_target = e["target"]
+    level = None
+    for lv, tid in talent_level_ids.items():
+        if tid == old_target:
+            level = lv
+            break
+    for lv, tid in stirpe_talent_ids.items():
+        if tid == old_target:
+            level = lv
+            break
+    if level is None:
+        continue
+    cls_id = talent_to_class.get(talent_id)
+    if cls_id:
+        cls_name = class_id_to_name.get(cls_id)
+        if cls_name and (cls_name, level) in class_talent_level_ids:
+            new_has_edges.append((talent_id, class_talent_level_ids[(cls_name, level)]))
+            continue
+    sp_id = talent_to_stirpe.get(talent_id)
+    if sp_id:
+        sp_name = stirpe_id_to_name.get(sp_id)
+        if sp_name and (sp_name, level) in stirpe_talent_level_ids:
+            new_has_edges.append((talent_id, stirpe_talent_level_ids[(sp_name, level)]))
+            continue
+    new_has_edges.append((talent_id, old_target))
+
+graph["links"] = [e for i, e in enumerate(graph["links"]) if i not in set(old_has_indices)]
+for src, tgt in new_has_edges:
+    add_edge(src, tgt, "has_talent_level", "EXTRACTED", 1.0)
+
+print(f"Replaced {len(old_has_indices)} has_talent_level edges with class-specific ones")
+
+# =================================================================
+# 9. SPELL LEVEL COHESION EDGES
+# =================================================================
+# Consecutive spell level nodes and hub links keep spell communities together
+incanti_id = existing_by_label.get("incantesimi", {}).get("id")
+for lv in range(1, 10):
+    if lv in spell_level_ids and lv + 1 in spell_level_ids:
+        add_edge(spell_level_ids[lv], spell_level_ids[lv + 1], "conceptually_related_to", "INFERRED", 0.95)
+        add_edge(spell_level_ids[lv + 1], spell_level_ids[lv], "conceptually_related_to", "INFERRED", 0.95)
+
+if incanti_id:
+    for lv, sid in spell_level_ids.items():
+        add_edge(sid, incanti_id, "conceptually_related_to", "INFERRED", 0.95)
+
+foc_hub = existing_by_label.get("incantesimi focalizzati", {}).get("id")
+if foc_hub and incanti_id:
+    add_edge(foc_hub, incanti_id, "conceptually_related_to", "INFERRED", 0.95)
+
+# =================================================================
+# 10. EDGE REWEIGHTING
+# =================================================================
+# Boost spell→level/school edges (weight 3.0) to keep spells cohesive;
+# reduce spell→class/tradition edges (weight 0.5) to prevent class over-clustering
+modified = 0
+for e in graph["links"]:
+    src = existing_by_id.get(e["source"], {})
+    tgt = existing_by_id.get(e["target"], {})
+    src_lbl = src.get("label", "")
+    tgt_lbl = tgt.get("label", "")
+
+    is_level = src_lbl.startswith("Incantesimo di") or tgt_lbl.startswith("Incantesimo di")
+    is_school = src_lbl.startswith("Scuola:") or tgt_lbl.startswith("Scuola:")
+    is_class = e["source"] in class_id_set or e["target"] in class_id_set
+    is_trad = src_lbl.startswith("Tradizione:") or tgt_lbl.startswith("Tradizione:")
+
+    if is_level:
+        e["weight"] = 3.0
+        modified += 1
+    elif is_school:
+        e["weight"] = 3.0
+        modified += 1
+    elif is_trad:
+        e["weight"] = 0.5
+        modified += 1
+    elif is_class:
+        e["weight"] = 0.5
+        modified += 1
+
+print(f"Reweighted {modified} edges")
+
+# =================================================================
 # WRITE OUTPUT
 # =================================================================
 graph["nodes"].extend(new_nodes)

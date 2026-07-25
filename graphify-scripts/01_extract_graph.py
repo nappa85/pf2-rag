@@ -142,6 +142,10 @@ stirpe_ranges = [
     ("Nano", 2562, 2842),
     ("Umano", 2842, 3867),
 ]
+# Archetype section starts at line 15369 — talents in lines 15369-16412
+# are archetype (not class) talents and must NOT be linked to classes.
+ARCHETYPE_START = 15369
+
 # Build line-range map for class sections
 # NOTE: Bardo class content is at lines 5699-6438 (between Barbaro and Campione
 # in the PDF extraction), even though the # Bardo heading appears at line 15553
@@ -158,7 +162,7 @@ class_ranges = [
     ("Mago", 11339, 12105),
     ("Monaco", 12105, 13110),
     ("Ranger", 13110, 14071),
-    ("Stregone", 14071, 15553),
+    ("Stregone", 14071, ARCHETYPE_START),
 ]
 
 current_class = None
@@ -166,6 +170,10 @@ current_stirpe = None
 
 for i, line in enumerate(lines):
     lineno = i + 1  # 1-indexed
+
+    # Skip archetype section — these talents belong to archetypes, not classes
+    if ARCHETYPE_START <= lineno < 16412:
+        continue
     
     # Track stirpe by line range
     current_stirpe = None

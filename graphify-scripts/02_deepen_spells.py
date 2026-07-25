@@ -211,12 +211,85 @@ scuole_section = add_node("Scuole di Magia", "document")
 for code, sid in school_ids.items():
     add_edge(sid, scuole_section, "conceptually_related_to", "EXTRACTED", 1.0)
 
-# Also add focused spell section links
-incantesimi_focus_id = add_node("Incantesimi Focalizzati", "concept")
+# Focus spells: extracted from spell chapter with pattern **NAME FOCALIZZATO N**
+focus_pattern = re.compile(r'\*\*([^*]{3,70}?)\s+FOCALIZZATO\s+(\d+)\*\*', re.IGNORECASE)
 
-# Parse class-specific spell lists (each class has its own spell section)
-# These are in the class chapters - let me scan for focus spell patterns
-focus_pattern = re.compile(r'^[\*\#\s]*([A-ZÀÈÉÌÒÙ][a-zA-ZÀàÈèÉéÌìÒòÙù\s\'\.]+?)\s*(?:[INR]\s*)?\((amm|evo|inv|nec|tra|div|abi|ill)\).*focus|focalizz', re.IGNORECASE)
+CLASS_NAMES = ["Alchimista", "Barbaro", "Bardo", "Campione", "Canaglia", "Chierico",
+               "Druido", "Guerriero", "Mago", "Monaco", "Ranger", "Stregone"]
+class_names_upper = [c.upper() for c in CLASS_NAMES]
+class_name_map = {c.upper(): c.capitalize() for c in CLASS_NAMES}
+
+SCHOOL_NAMES_IT = {
+    "ammaliamento": "Ammaliamento", "abiurazione": "Abiurazione",
+    "evocazione": "Evocazione", "invocazione": "Invocazione",
+    "necromanzia": "Necromanzia", "trasmutazione": "Trasmutazione",
+    "divinazione": "Divinazione", "illusione": "Illusione",
+}
+
+nbi = {n["id"]: n for n in graph["nodes"]}
+nbl = {n["label"]: n for n in graph["nodes"]}
+class_node_ids_full = {cls: nbl[cls]["id"] for cls in CLASS_NAMES if cls in nbl}
+
+focus_start = 30796
+focus_count = 0
+focus_class_count = 0
+focus_school_count = 0
+
+for i in range(focus_start, len(lines)):
+    m = focus_pattern.search(lines[i])
+    if not m:
+        continue
+    name = m.group(1).strip()
+    level = int(m.group(2))
+    if len(name) < 3:
+        continue
+
+    s = re.sub(r"[^a-z0-9]+", "_", name.lower().strip()).strip("_")
+    nid = f"{STEM}_{s}"
+    if nid not in nbi:
+        spell_id = add_node(name, "concept", extra={"category": "incantesimo_focalizzato"})
+    else:
+        spell_id = nid
+
+    add_edge(spell_id, incantesimi_focus_id, "conceptually_related_to", "EXTRACTED", 1.0)
+
+    if level in level_ids:
+        add_edge(spell_id, level_ids[level], "references", "EXTRACTED", 1.0)
+
+    found_cls = None
+    for j in range(i + 1, min(i + 4, len(lines))):
+        line_upper = lines[j].upper()
+        for cls_upper in class_names_upper:
+            if cls_upper in line_upper:
+                found_cls = class_name_map[cls_upper]
+                break
+        if found_cls:
+            break
+    if found_cls and found_cls in class_node_ids_full:
+        add_edge(spell_id, class_node_ids_full[found_cls], "conceptually_related_to", "EXTRACTED", 1.0)
+        focus_class_count += 1
+
+    for offset in range(0, 6):
+        idx = i + offset
+        if idx >= len(lines):
+            break
+        line_lower = lines[idx].lower()
+        for school_key, school_name in SCHOOL_NAMES_IT.items():
+            if school_key in line_lower:
+                if school_name.lower() in existing_nodes:
+                    sch_id = existing_nodes[school_name.lower()]["id"]
+                else:
+                    sch_id = add_node(f"Scuola: {school_name}", "concept")
+                add_edge(spell_id, sch_id, "references", "EXTRACTED", 1.0)
+                focus_school_count += 1
+                break
+        else:
+            continue
+        break
+
+    focus_count += 1
+
+print(f"Focus spells: {focus_count} extracted, {focus_class_count} class-linked, {focus_school_count} school-linked")
 
 print(f"Spells processed: {spells_total}, linked: {spells_linked}")
 print(f"New nodes: {len(new_nodes)}, new edges: {len(new_edges)}")
