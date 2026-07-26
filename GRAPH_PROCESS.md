@@ -219,6 +219,7 @@ Features:
 | unlocked_at | Feature unlocks at char level | privilegio → livello |
 | upgrades_to | Skill rank progression | rank → next rank |
 | has_talent_level | Talent's skill/general level tier | talento → livello talento abilità/generico |
+| inflicts | Spell/ability inflicts a condition | incantesimo → condizione |
 
 ### Key Structural Nodes
 

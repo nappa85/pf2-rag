@@ -51,6 +51,7 @@ input[type=range] { width: 200px; accent-color: var(--accent); }
 .chip:hover .desc-tip { display: block; }
 .chip .desc-tip .tip-title { font-weight: 700; margin-bottom: 3px; font-size: 0.76rem; }
 .chip .desc-tip .tip-type { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; }
+.chip .desc-tip .tip-cond { font-size: 0.65rem; color: var(--accent); font-weight: 600; }
 .empty { color: var(--dim); font-style: italic; font-size: 0.85rem; padding: 8px; }
 .summary-bar { display: flex; gap: 16px; padding: 10px 24px; background: var(--surface); border-top: 1px solid var(--surface2); flex-wrap: wrap; }
 .summary-stat { text-align: center; }
@@ -144,17 +145,30 @@ let edgesFrom = {};
 let edgesTo = {};
 let currentTab = 'spells';
 
+function getConditions(nodeId) {
+  const out = edgesFrom[nodeId] || [];
+  const conds = [];
+  for (const e of out) {
+    if (e.relation === 'inflicts') {
+      const tgt = nodeById[e.target];
+      if (tgt) conds.push(tgt.label);
+    }
+  }
+  return conds;
+}
+
 function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function chipHtml(name, type, desc, level, school) {
+function chipHtml(name, type, desc, level, school, conditions) {
   let h = `<span class="chip ${type}">${esc(name)}`;
-  if (desc || level || school) {
+  if (desc || level || school || conditions) {
     h += `<span class="desc-tip"><span class="tip-title">${esc(name)}</span>`;
     if (school) h += ` <span class="tip-type" style="color:var(--spell)">${esc(school)}</span>`;
     if (level) h += ` <span class="tip-type">${level}° liv.</span>`;
     if (desc) h += `<br>${esc(desc)}`;
+    if (conditions && conditions.length) h += `<br><span class="tip-cond">${conditions.map(c=>esc(c)).join(', ')}</span>`;
     h += `</span>`;
   }
   h += `</span>`;
@@ -264,7 +278,7 @@ function getAllSpells(className) {
     if (!spl && !isFocus) continue;
     const node = nodeById[sid];
     if (!node) continue;
-    const entry = { name: node.label, level: spl || 1, school: spellSchool[sid] || '', tradition: spellTradition[sid] || '', isFocus, desc: node.description || '' };
+    const entry = { name: node.label, level: spl || 1, school: spellSchool[sid] || '', tradition: spellTradition[sid] || '', isFocus, desc: node.description || '', conditions: getConditions(sid) };
     if (isFocus) {
       focus.push(entry);
     } else if (spl) {
@@ -423,7 +437,7 @@ function render() {
         html += `<div class="spell-group"><div class="group-header">Incantesimi di ${s}° Livello (${atLevel.length})</div>`;
         for (const sp of atLevel) {
           const tradPill = sp.tradition ? ` <span class="pill ${sp.tradition.toLowerCase()}">${sp.tradition}</span>` : '';
-          html += chipHtml(sp.name, 'spell', sp.desc, null, sp.school) + tradPill;
+          html += chipHtml(sp.name, 'spell', sp.desc, null, sp.school, sp.conditions) + tradPill;
         }
         html += '</div>';
       }
@@ -434,7 +448,7 @@ function render() {
           if (atLevel.length === 0) continue;
           html += `<div style="margin-left:12px;margin-bottom:4px;"><b style="color:var(--focus)">${s}°</b> `;
           for (const sp of atLevel) {
-            html += chipHtml(sp.name, 'focus', sp.desc, null, sp.school);
+            html += chipHtml(sp.name, 'focus', sp.desc, null, sp.school, sp.conditions);
           }
           html += '</div>';
         }
@@ -467,7 +481,7 @@ function render() {
           html += `<div class="school-header">${s}° Livello</div><div class="spell-grid">`;
           for (const sp of atLevel) {
             const isFocus = focusAtLevel.some(f => f.name === sp.name);
-            html += chipHtml(sp.name, isFocus ? 'focus' : 'spell', sp.desc, null, sp.school);
+            html += chipHtml(sp.name, isFocus ? 'focus' : 'spell', sp.desc, null, sp.school, sp.conditions);
           }
           html += '</div>';
         }

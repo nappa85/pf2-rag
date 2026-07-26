@@ -13,6 +13,19 @@ ROOT = "/tmp/pathfinder-md"
 graph_json = json.loads(GRAPH_JSON.read_text(encoding="utf-8"))
 detection = {"total_files": 1, "total_words": 1403621}
 
+EXTRA_KEYS = [
+    "description", "talent_type", "level", "category", "school",
+    "norm_label", "community",
+]
+
+node_extras = {}
+for n in graph_json["nodes"]:
+    extras = {}
+    for k in EXTRA_KEYS:
+        if k in n:
+            extras[k] = n[k]
+    node_extras[n["id"]] = extras
+
 extraction = {
     "nodes": [
         {
@@ -60,6 +73,19 @@ questions = suggest_questions(G, communities, labels)
 wrote = to_json(G, communities, "graphify-out/graph.json")
 if not wrote:
     raise RuntimeError("Export refused to shrink graph")
+
+rebuilt = json.loads(Path("graphify-out/graph.json").read_text(encoding="utf-8"))
+restored = 0
+for n in rebuilt["nodes"]:
+    if n["id"] in node_extras:
+        for k, v in node_extras[n["id"]].items():
+            if k not in n or not n[k]:
+                n[k] = v
+                restored += 1
+Path("graphify-out/graph.json").write_text(
+    json.dumps(rebuilt, indent=2, ensure_ascii=False), encoding="utf-8"
+)
+print(f"Restored {restored} node attributes after rebuild")
 
 report = generate(
     G,

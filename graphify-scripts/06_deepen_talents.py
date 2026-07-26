@@ -13,6 +13,18 @@ for n in graph["nodes"]:
     existing_by_label[n["label"].lower().strip()] = n
 existing_by_id = {n["id"]: n for n in graph["nodes"]}
 
+
+def normalize_for_matching(name):
+    s = name.lower().strip()
+    s = re.sub(r"[iNnRr]$", "", s)
+    s = re.sub(r"[iNnRr],.*$", "", s)
+    s = re.sub(r"à[iNnRr]", "à", s)
+    s = re.sub(r"è[iNnRr]", "è", s)
+    s = re.sub(r"ì[iNnRr]", "ì", s)
+    s = re.sub(r"ò[iNnRr]", "ò", s)
+    s = re.sub(r"ù[iNnRr]", "ù", s)
+    return s.strip()
+
 new_edges = []
 new_nodes = []
 new_node_ids = set(n["id"] for n in graph["nodes"])
@@ -385,21 +397,168 @@ for sp_name, desc in stirpe_descriptions.items():
     if key not in descriptions:
         descriptions[key] = {"desc": desc, "talent_type": "stirpe_desc"}
 
+# --- Focus spell descriptions ---
+foc_pattern = re.compile(r"\*\*([^*]{3,70}?)\s+FOCALIZZATO\s+(\d+)\*\*", re.IGNORECASE)
+for i in range(21137, len(lines)):
+    m = foc_pattern.search(lines[i])
+    if not m:
+        continue
+    name = m.group(1).strip()
+    level = int(m.group(2))
+    if len(name) < 3:
+        continue
+    desc = ""
+    for j in range(i + 1, min(i + 15, len(lines))):
+        tline = lines[j].strip()
+        if not tline:
+            continue
+        if tline.startswith("#") or tline.startswith("!["):
+            break
+        if re.search(r"FOCALIZZATO\s+\d+", tline) and j > i + 1:
+            break
+        if tline.startswith("**") and j > i + 1:
+            continue
+        if len(tline) > 15 and not re.match(r"^\*\*(?:NON COMUNE|ABILITÀ|GENERICO)", tline):
+            desc = tline[:300]
+            break
+    key = name.lower().strip()
+    if key not in descriptions:
+        descriptions[key] = {
+            "desc": extract_first_sentence(desc),
+            "talent_type": "incantesimo_focalizzato",
+            "level": None,
+        }
+
+# --- Fix: class talent descriptions pick up trait lines ---
+# The class sections have talent entries like:
+# #### **CONTROINCANTESIMO** [reaction] **TALENTO 1**
+# **ABIURAZIONE ARCANO MAGO**      <- trait line, NOT description
+# **Innesco** ...                   <- trigger line, skip
+# Actual description follows
+# The existing extraction in section 2 already has this issue baked into graph.json
+# We re-extract class talent descriptions here with better filtering
+for cls_name, cstart, cend in class_ranges:
+    i = cstart
+    while i < cend:
+        line = lines[i]
+        m = None
+        for pat in talent_patterns:
+            m = pat.search(line)
+            if m:
+                break
+        if m:
+            name = m.group(1).strip()
+            level = int(m.group(2))
+            if name.upper() not in ("TALENTO", "ABILITÀ", "GENERICO") and len(name) >= 3:
+                if re.match(r"^\[(one-action|two-actions|three-actions|reaction|free-action)\]$", name, re.IGNORECASE):
+                    i += 1
+                    continue
+                desc = ""
+                for j in range(i + 1, min(i + 12, cend)):
+                    tline = lines[j].strip()
+                    if not tline:
+                        continue
+                    if re.search(r"TALENTO\s+\d+", tline) and j > i + 1:
+                        break
+                    if tline.startswith("#") or tline.startswith("!["):
+                        break
+                    if tline.startswith("**Prerequis") or tline.startswith("**Speciale") or tline.startswith("**Innesco"):
+                        continue
+                    if tline.startswith("**Lancio") or tline.startswith("**Raggio") or tline.startswith("**Tiro Salvezza"):
+                        continue
+                    if tline.startswith("**"):
+                        is_trait = re.match(
+                            r"^\*\*(" + "|".join([
+                                "ABIURAZIONE", "AMMALIAMENTO", "EVOCAZIONE", "INVOCAZIONE",
+                                "NECROMANZIA", "TRASMUTAZIONE", "DIVINAZIONE", "ILLUSIONE",
+                                "ARCANO", "DIVINO", "OCCULTO", "PRIMEVO",
+                                "CONCENTRAZIONE", "MANEGGIARE", "PAUSA", "SEGRETO",
+                                "ESPLORAZIONE", "EMOZIONE", "INCAPACITAZIONE", "PAURA",
+                                "FORTUNA", "AUDITIVO", "VISIVO", "METAMORFOSI",
+                                "COMPOSIZIONE", "GUARIGIONE", "MENTALE", "POSIZIONE",
+                                "MAGO", "BARDO", "CHIERICO", "DRUIDO", "STREGONE",
+                                "RANGER", "BARBARO", "MONACO", "CANAGLIA", "CAMPIONE",
+                                "GUERRIERO", "ALCHIMISTA", "NON COMUNE", "COMUNE",
+                            ]) + r")",
+                            tline
+                        )
+                        if is_trait:
+                            continue
+                    if len(tline) > 15:
+                        desc = tline[:300]
+                        break
+                key = name.lower().strip()
+                clean_desc = extract_first_sentence(desc)
+                if clean_desc:
+                    descriptions[key] = {
+                        "desc": clean_desc,
+                        "talent_type": "classe",
+                        "level": level,
+                    }
+        i += 1
+
+# --- Condition links from spell/talent descriptions ---
+CONDIZIONI = [
+    "Spaventato", "Confuso", "Incapacitato", "Nauseato", "Paralizzato",
+    "Stordito", "Avvelenato", "Sanguinamento", "Rallentato", "Prono",
+    "Afferrato", "Intrappolato", "Morente", "Nascosto", "Immobilizzato",
+    "Incosciente", "Malato", "In fuga", "Rapido", "Blindato",
+    "Impreparato", "Invisibile", "Pietrificato",
+]
+cond_node_ids = {}
+for n in graph["nodes"]:
+    for cond in CONDIZIONI:
+        if n["label"].lower() == cond.lower():
+            cond_node_ids[cond] = n["id"]
+            break
+
+condition_edges_added = 0
+spell_name_current = ""
+spell_id_current = None
+for i in range(27000, len(lines)):
+    line = lines[i].strip()
+    m_spell = re.search(r"\*\*([^*]{3,70}?)\s+INCANTESIMO\s+\d+\*\*", line, re.IGNORECASE)
+    m_foc = re.search(r"\*\*([^*]{3,70}?)\s+FOCALIZZATO\s+\d+\*\*", line, re.IGNORECASE)
+    if m_spell:
+        spell_name_current = m_spell.group(1).strip()
+        lid = spell_name_current.lower().strip()
+        norm = normalize_for_matching(spell_name_current)
+        if lid in existing_by_label:
+            spell_id_current = existing_by_label[lid]["id"]
+        elif norm in existing_by_label:
+            spell_id_current = existing_by_label[norm]["id"]
+        else:
+            found = False
+            for dk in existing_by_label:
+                if dk.startswith(lid) and len(dk) - len(lid) <= 3:
+                    spell_id_current = existing_by_label[dk]["id"]
+                    found = True
+                    break
+                if dk.startswith(norm) and len(dk) - len(norm) <= 3:
+                    spell_id_current = existing_by_label[dk]["id"]
+                    found = True
+                    break
+            if not found:
+                spell_id_current = None
+    elif m_foc:
+        spell_name_current = m_foc.group(1).strip()
+        lid = spell_name_current.lower().strip()
+        if lid in existing_by_label:
+            spell_id_current = existing_by_label[lid]["id"]
+        else:
+            spell_id_current = None
+    if spell_id_current and (line.startswith("**Successo") or line.startswith("**Fallimento") or line.startswith("**Critico")):
+        for cond in CONDIZIONI:
+            if cond.lower() in line.lower() and cond in cond_node_ids:
+                add_edge(spell_id_current, cond_node_ids[cond], "inflicts", "EXTRACTED", 1.0, weight=1.5)
+                condition_edges_added += 1
+
 print(f"Extracted {len(descriptions)} descriptions total")
+print(f"Condition-inflicting edges added: {condition_edges_added}")
 
 # =================================================================
 # 3. INJECT DATA INTO GRAPH NODES
 # =================================================================
-def normalize_for_matching(name):
-    s = name.lower().strip()
-    s = re.sub(r"[iNnRr]$", "", s)
-    s = re.sub(r"[iNnRr],.*$", "", s)
-    s = re.sub(r"à[iNnRr]", "à", s)
-    s = re.sub(r"è[iNnRr]", "è", s)
-    s = re.sub(r"ì[iNnRr]", "ì", s)
-    s = re.sub(r"ò[iNnRr]", "ò", s)
-    s = re.sub(r"ù[iNnRr]", "ù", s)
-    return s.strip()
 
 updated_count = 0
 fuzzy_count = 0
