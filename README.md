@@ -1,6 +1,6 @@
-# Pathfinder 2e RAG System
+# Pathfinder 2e RAG & Knowledge Graph
 
-A Retrieval-Augmented Generation system for querying the Italian Pathfinder Seconda Edizione rulebooks. It uses hybrid search (FAISS dense + BM25 sparse with Reciprocal Rank Fusion) and Ollama-powered LLM generation to answer questions grounded in the game manuals.
+A Retrieval-Augmented Generation system and knowledge graph for querying the Italian Pathfinder Seconda Edizione rulebooks. The RAG system uses hybrid search (FAISS dense + BM25 sparse with Reciprocal Rank Fusion) and Ollama-powered LLM generation to answer questions grounded in the game manuals. The knowledge graph (see [GRAPH_PROCESS.md](GRAPH_PROCESS.md)) provides a traversable, queryable graph of abilities, talents, spells, classes, and stirpi built with [graphify](https://pypi.org/project/graphify/).
 
 ## Features
 

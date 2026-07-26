@@ -2,7 +2,7 @@ import re
 import json
 from pathlib import Path
 
-SOURCE_FILE = "data/markdown/Manuale di Gioco.md"
+SOURCE_FILE = "/tmp/pathfinder-md/Manuale di Gioco.md"
 STEM = "tmp_pathfinder_md_manuale_di_gioco"
 
 lines = Path(SOURCE_FILE).read_text(encoding="utf-8").splitlines()

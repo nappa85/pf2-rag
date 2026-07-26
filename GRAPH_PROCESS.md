@@ -24,6 +24,8 @@ pathfinder/
 │   ├── 03_deepen_levels.py        # Character levels, class-specific talent levels, reweighting
 │   ├── 04_rebuild.py              # Rebuild graph with community detection
 │   ├── 05_build_query_html.py     # Embeds graph.json into query.html
+│   ├── 06_deepen_talents.py       # Skill/general talents, descriptions, conditions
+│   ├── patch_graph_html.py        # Patches graph.html to show descriptions in info panel
 │   └── query_template.html        # query.html source (before embedding)
 ├── data/markdown/                 # Root-owned markdown (from Docker)
 ├── /tmp/pathfinder-md/            # Writable copy of markdown files
@@ -197,6 +199,21 @@ Features:
 - **Talent progression table** — shows when each talent type is gained per level
 - Non-casting classes show "non è un incantatore" instead of spell progression tables
 
+### Step 5: Patch graph.html for Descriptions
+
+```bash
+python graphify-scripts/patch_graph_html.py
+```
+
+Post-processes `graphify-out/graph.html` to:
+
+- Inject `description`, `talent_type`, `level` attributes from `graph.json` into the HTML's `RAW_NODES` JS array
+- Patch the `nodesDS` mapping so these fields are available in the vis.js DataSet
+- Patch the `showInfo` panel to display description (styled box), talent type (as "Tipo"), and level (as "Livello")
+- Set hover tooltip to show short description (≤150 chars) instead of just the label
+
+Must run after `graphify export html`. This is the final step of the pipeline.
+
 ## Graph Schema
 
 ### Node Types
@@ -253,7 +270,7 @@ where `normalized_label` is lowercase, non-alphanumeric replaced with `_`, strip
 ## Known Issues
 
 - **Focus spell schools** — ~60 of 150 focus spells still lack school info (trait line too far from spell header or missing entirely)
-- **Graph rebuild** loses the `level` and `category` attributes on nodes; these must be re-injected from the source markdown
+- **Graph rebuild** loses the `level`, `category`, `talent_type` attributes on nodes; `04_rebuild.py` preserves them via `node_extras`, and `patch_graph_html.py` re-injects them into the HTML
 - **Spell names** have stray characters from PDF extraction: trailing `'`, superscript markers (`i`, `N`, `R`). Partially cleaned in step 2.
 - **Bardo/Stregone** share both Arcano and Occulto traditions; the graph links them to spells from both.
 - **Alchimista** is not a spellcaster but gets linked to level 1 (for class features).

@@ -230,6 +230,9 @@ nbi = {n["id"]: n for n in graph["nodes"]}
 nbl = {n["label"]: n for n in graph["nodes"]}
 class_node_ids_full = {cls: nbl[cls]["id"] for cls in CLASS_NAMES if cls in nbl}
 
+incantesimi_focalizzati_node = existing_nodes.get("incantesimi focalizzati")
+incantesimi_focus_id = incantesimi_focalizzati_node["id"] if incantesimi_focalizzati_node else f"{STEM}_incantesimi_focalizzati"
+
 focus_start = 30796
 focus_count = 0
 focus_class_count = 0
