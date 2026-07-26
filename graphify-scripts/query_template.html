@@ -9,7 +9,7 @@
   --bg: #1a1a2e; --surface: #16213e; --surface2: #0f3460;
   --accent: #e94560; --accent2: #533483; --text: #eee; --dim: #8899aa;
   --spell: #4fc3f7; --talent: #81c784; --feature: #ffb74d; --level: #ce93d8;
-  --focus: #ff8a65;
+  --focus: #ff8a65; --generic: #90a4ae; --ability: #80cbc4; --stirpe: #ce93d8;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
@@ -33,16 +33,26 @@ input[type=range] { width: 200px; accent-color: var(--accent); }
 .group-header { font-size: 0.85rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; margin: 10px 0 6px 0; }
 .spell-group .group-header { background: rgba(79,195,247,0.15); color: var(--spell); }
 .talent-group .group-header { background: rgba(129,199,132,0.15); color: var(--talent); }
+.ability-group .group-header { background: rgba(128,203,196,0.15); color: var(--ability); }
+.generic-group .group-header { background: rgba(144,164,174,0.15); color: var(--generic); }
+.stirpe-group .group-header { background: rgba(206,147,216,0.15); color: var(--stirpe); }
 .focus-group .group-header { background: rgba(255,138,101,0.15); color: var(--focus); }
 .school-header { font-size: 0.8rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; margin: 6px 0 4px 8px; color: var(--dim); border-left: 3px solid var(--dim); }
 .spell-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; margin-bottom: 4px; }
-.spell-chip { background: var(--surface2); padding: 3px 8px; border-radius: 4px; font-size: 0.78rem; border-left: 3px solid var(--spell); transition: background 0.15s; cursor: default; }
-.spell-chip:hover { background: var(--accent2); }
-.spell-chip.focus { border-left-color: var(--focus); }
-.talent-chip { background: var(--surface2); padding: 3px 8px; border-radius: 4px; font-size: 0.78rem; border-left: 3px solid var(--talent); transition: background 0.15s; cursor: default; }
-.talent-chip:hover { background: var(--accent2); }
+.chip { position: relative; background: var(--surface2); padding: 3px 8px; border-radius: 4px; font-size: 0.78rem; transition: background 0.15s; cursor: default; }
+.chip:hover { background: var(--accent2); }
+.chip.spell { border-left: 3px solid var(--spell); }
+.chip.focus { border-left: 3px solid var(--focus); }
+.chip.talent { border-left: 3px solid var(--talent); }
+.chip.ability { border-left: 3px solid var(--ability); }
+.chip.generic { border-left: 3px solid var(--generic); }
+.chip.stirpe { border-left: 3px solid var(--stirpe); }
+.chip .desc-tip { display: none; position: absolute; z-index: 100; left: 0; top: 100%; margin-top: 4px; background: var(--bg); border: 1px solid var(--dim); border-radius: 6px; padding: 8px 10px; font-size: 0.72rem; color: var(--text); max-width: 320px; min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); line-height: 1.4; font-weight: 400; }
+.chip:hover .desc-tip { display: block; }
+.chip .desc-tip .tip-title { font-weight: 700; margin-bottom: 3px; font-size: 0.76rem; }
+.chip .desc-tip .tip-type { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; }
 .empty { color: var(--dim); font-style: italic; font-size: 0.85rem; padding: 8px; }
-.summary-bar { display: flex; gap: 16px; padding: 10px 24px; background: var(--surface); border-top: 1px solid var(--surface2); }
+.summary-bar { display: flex; gap: 16px; padding: 10px 24px; background: var(--surface); border-top: 1px solid var(--surface2); flex-wrap: wrap; }
 .summary-stat { text-align: center; }
 .summary-stat .num { font-size: 1.4rem; font-weight: 700; }
 .summary-stat .lbl { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; }
@@ -58,6 +68,11 @@ input[type=range] { width: 200px; accent-color: var(--accent); }
 .pill.divine { background: rgba(255,183,77,0.2); color: #ffb74d; }
 .pill.occult { background: rgba(206,147,216,0.2); color: #ce93d8; }
 .pill.primal { background: rgba(129,199,132,0.2); color: #81c784; }
+.type-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.6rem; font-weight: 700; margin-left: 4px; text-transform: uppercase; }
+.type-badge.classe { background: rgba(129,199,132,0.2); color: var(--talent); }
+.type-badge.abilita { background: rgba(128,203,196,0.2); color: var(--ability); }
+.type-badge.generico { background: rgba(144,164,174,0.2); color: var(--generic); }
+.type-badge.stirpe { background: rgba(206,147,216,0.2); color: var(--stirpe); }
 </style>
 </head>
 <body>
@@ -67,6 +82,10 @@ input[type=range] { width: 200px; accent-color: var(--accent); }
     <div class="control-group">
       <label>Classe</label>
       <select id="classSelect"></select>
+    </div>
+    <div class="control-group">
+      <label>Stirpe</label>
+      <select id="stirpeSelect"></select>
     </div>
     <div class="control-group">
       <label>Livello Personaggio</label>
@@ -106,11 +125,17 @@ const CLASSES = {
   'Stregone': {type:'full_caster',tradition:'Arcano'},
 };
 
+const STIRPI = ['Elfo','Gnomo','Goblin','Halfling','Nano','Umano'];
+
 const SCHOOL_NAMES = {
   'amm':'Ammaliamento','abi':'Abiurazione','evo':'Evocazione',
   'inv':'Invocazione','nec':'Necromanzia','tra':'Trasmutazione',
   'div':'Divinazione','ill':'Illusione'
 };
+
+const SKILL_TALENT_LEVELS = [2,4,6,8,10,12,14,16,18,20];
+const GENERAL_TALENT_LEVELS = [3,7,11,15,19];
+const STIRPE_TALENT_LEVELS = [1,5,9,13,17];
 
 let graphData = null;
 let nodeById = {};
@@ -118,6 +143,23 @@ let nodeByLabel = {};
 let edgesFrom = {};
 let edgesTo = {};
 let currentTab = 'spells';
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function chipHtml(name, type, desc, level, school) {
+  let h = `<span class="chip ${type}">${esc(name)}`;
+  if (desc || level || school) {
+    h += `<span class="desc-tip"><span class="tip-title">${esc(name)}</span>`;
+    if (school) h += ` <span class="tip-type" style="color:var(--spell)">${esc(school)}</span>`;
+    if (level) h += ` <span class="tip-type">${level}° liv.</span>`;
+    if (desc) h += `<br>${esc(desc)}`;
+    h += `</span>`;
+  }
+  h += `</span>`;
+  return h;
+}
 
 async function init() {
   graphData = GRAPH_DATA;
@@ -132,15 +174,26 @@ async function init() {
     edgesTo[e.target].push(e);
   }
 
-  const sel = document.getElementById('classSelect');
+  const clsSel = document.getElementById('classSelect');
   for (const cls of Object.keys(CLASSES)) {
     const opt = document.createElement('option');
     opt.value = cls; opt.textContent = cls;
-    sel.appendChild(opt);
+    clsSel.appendChild(opt);
   }
-  sel.value = 'Stregone';
+  clsSel.value = 'Stregone';
 
-  sel.addEventListener('change', render);
+  const spSel = document.getElementById('stirpeSelect');
+  const anyOpt = document.createElement('option');
+  anyOpt.value = ''; anyOpt.textContent = '— tutte —';
+  spSel.appendChild(anyOpt);
+  for (const sp of STIRPI) {
+    const opt = document.createElement('option');
+    opt.value = sp; opt.textContent = sp;
+    spSel.appendChild(opt);
+  }
+
+  clsSel.addEventListener('change', render);
+  spSel.addEventListener('change', render);
   document.getElementById('levelSlider').addEventListener('input', render);
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => {
@@ -211,7 +264,7 @@ function getAllSpells(className) {
     if (!spl && !isFocus) continue;
     const node = nodeById[sid];
     if (!node) continue;
-    const entry = { name: node.label, level: spl || 1, school: spellSchool[sid] || '', tradition: spellTradition[sid] || '', isFocus };
+    const entry = { name: node.label, level: spl || 1, school: spellSchool[sid] || '', tradition: spellTradition[sid] || '', isFocus, desc: node.description || '' };
     if (isFocus) {
       focus.push(entry);
     } else if (spl) {
@@ -223,7 +276,7 @@ function getAllSpells(className) {
   return {common, focus};
 }
 
-function queryTalents(className, charLevel) {
+function queryClassTalents(className, charLevel) {
   const clsNode = nodeByLabel[className];
   if (!clsNode) return [];
   const clsId = clsNode.id;
@@ -231,7 +284,7 @@ function queryTalents(className, charLevel) {
   for (const n of graphData.nodes) {
     const m = n.label.match(/^Talento di (\d+)° Livello$/);
     if (m) talentLevelIds[n.id] = parseInt(m[1]);
-    const m2 = n.label.match(/^Talento di Stirpe di (\d+)° Livello$/);
+    const m2 = n.label.match(/^Talento di (\d+)° Livello \(/);
     if (m2) talentLevelIds[n.id] = parseInt(m2[1]);
   }
   const result = [];
@@ -241,14 +294,16 @@ function queryTalents(className, charLevel) {
     if (e.relation !== 'conceptually_related_to') continue;
     const sid = e.source;
     if (seen.has(sid)) continue;
+    const srcNode = nodeById[sid];
+    if (!srcNode) continue;
+    if (srcNode.talent_type && srcNode.talent_type !== 'classe') continue;
     seen.add(sid);
     const outEdges = edgesFrom[sid] || [];
     for (const e2 of outEdges) {
       if (e2.relation === 'has_talent_level' && e2.target in talentLevelIds) {
         const tl = talentLevelIds[e2.target];
         if (tl <= charLevel) {
-          const node = nodeById[sid];
-          if (node) result.push({ name: node.label, level: tl });
+          result.push({ name: srcNode.label, level: tl, type: 'classe', desc: srcNode.description || '' });
         }
         break;
       }
@@ -258,8 +313,89 @@ function queryTalents(className, charLevel) {
   return result;
 }
 
+function queryStirpeTalents(stirpeName, charLevel) {
+  if (!stirpeName) return [];
+  const spNode = nodeByLabel[stirpeName];
+  if (!spNode) return [];
+  const spId = spNode.id;
+  const stirpeLevelIds = {};
+  for (const n of graphData.nodes) {
+    const m = n.label.match(/^Talento di Stirpe di (\d+)° Livello/);
+    if (m) stirpeLevelIds[n.id] = parseInt(m[1]);
+  }
+  const result = [];
+  const seen = new Set();
+  const edgesToStirpe = edgesTo[spId] || [];
+  for (const e of edgesToStirpe) {
+    if (e.relation !== 'conceptually_related_to') continue;
+    const sid = e.source;
+    if (seen.has(sid)) continue;
+    const srcNode = nodeById[sid];
+    if (!srcNode) continue;
+    seen.add(sid);
+    const outEdges = edgesFrom[sid] || [];
+    for (const e2 of outEdges) {
+      if (e2.relation === 'has_talent_level' && e2.target in stirpeLevelIds) {
+        const tl = stirpeLevelIds[e2.target];
+        if (tl <= charLevel) {
+          result.push({ name: srcNode.label, level: tl, type: 'stirpe', desc: srcNode.description || '' });
+        }
+        break;
+      }
+    }
+  }
+  result.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+  return result;
+}
+
+function querySkillTalents(charLevel) {
+  const result = [];
+  const seen = new Set();
+  const hubs = ['Talenti di Abilità e Generici', 'Talenti Generici'];
+  for (const hubLabel of hubs) {
+    const hubNode = nodeByLabel[hubLabel];
+    if (!hubNode) continue;
+    const edgesToHub = edgesTo[hubNode.id] || [];
+    for (const e of edgesToHub) {
+      if (e.relation !== 'conceptually_related_to') continue;
+      const sid = e.source;
+      if (seen.has(sid)) continue;
+      const srcNode = nodeById[sid];
+      if (!srcNode) continue;
+      seen.add(sid);
+      const ttype = srcNode.talent_type || 'generico';
+      const tlevel = srcNode.level;
+      if (tlevel != null && tlevel <= charLevel) {
+        result.push({ name: srcNode.label, level: tlevel, type: ttype, desc: srcNode.description || '' });
+      }
+    }
+  }
+  result.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+  return result;
+}
+
+function renderTalentGroup(talents, groupName, chipType) {
+  if (talents.length === 0) return '';
+  let html = `<div class="${chipType}-group"><div class="group-header">${groupName} (${talents.length})</div>`;
+  let currentLv = 0;
+  let open = false;
+  for (const t of talents) {
+    if (t.level !== currentLv) {
+      if (open) html += '</div>';
+      currentLv = t.level;
+      html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-left:8px;">`;
+      open = true;
+    }
+    html += chipHtml(t.name, chipType, t.desc, t.level);
+  }
+  if (open) html += '</div>';
+  html += '</div>';
+  return html;
+}
+
 function render() {
   const cls = document.getElementById('classSelect').value;
+  const stirpe = document.getElementById('stirpeSelect').value;
   const lv = parseInt(document.getElementById('levelSlider').value);
   document.getElementById('levelDisplay').textContent = lv;
   const classInfo = CLASSES[cls];
@@ -267,7 +403,12 @@ function render() {
   const {common, focus} = getAllSpells(cls);
   const commonAtLevel = common.filter(s => s.level <= maxSpl);
   const focusAtLevel = focus.filter(s => s.level <= Math.ceil(lv / 2));
-  const talents = queryTalents(cls, lv);
+
+  const classTalents = queryClassTalents(cls, lv);
+  const stirpeTalents = queryStirpeTalents(stirpe, lv);
+  const skillTalents = querySkillTalents(lv);
+  const abilitaTalents = skillTalents.filter(t => t.type === 'abilità');
+  const genericoTalents = skillTalents.filter(t => t.type === 'generico');
 
   let html = '';
 
@@ -281,8 +422,8 @@ function render() {
         if (atLevel.length === 0) continue;
         html += `<div class="spell-group"><div class="group-header">Incantesimi di ${s}° Livello (${atLevel.length})</div>`;
         for (const sp of atLevel) {
-          const tradPill = sp.tradition ? `<span class="pill ${sp.tradition.toLowerCase()}">${sp.tradition}</span>` : '';
-          html += `<div class="spell-chip">${sp.name} ${sp.school ? '· '+sp.school : ''} ${tradPill}</div>`;
+          const tradPill = sp.tradition ? ` <span class="pill ${sp.tradition.toLowerCase()}">${sp.tradition}</span>` : '';
+          html += chipHtml(sp.name, 'spell', sp.desc, null, sp.school) + tradPill;
         }
         html += '</div>';
       }
@@ -293,7 +434,7 @@ function render() {
           if (atLevel.length === 0) continue;
           html += `<div style="margin-left:12px;margin-bottom:4px;"><b style="color:var(--focus)">${s}°</b> `;
           for (const sp of atLevel) {
-            html += `<span class="spell-chip focus">${sp.name}${sp.school ? ' · '+sp.school : ''}</span> `;
+            html += chipHtml(sp.name, 'focus', sp.desc, null, sp.school);
           }
           html += '</div>';
         }
@@ -326,7 +467,7 @@ function render() {
           html += `<div class="school-header">${s}° Livello</div><div class="spell-grid">`;
           for (const sp of atLevel) {
             const isFocus = focusAtLevel.some(f => f.name === sp.name);
-            html += `<span class="spell-chip${isFocus ? ' focus' : ''}">${sp.name}</span>`;
+            html += chipHtml(sp.name, isFocus ? 'focus' : 'spell', sp.desc, null, sp.school);
           }
           html += '</div>';
         }
@@ -335,22 +476,35 @@ function render() {
     html += '</div>';
 
   } else if (currentTab === 'talents') {
-    html += '<div class="card"><h2><span class="icon" style="background:var(--talent)"></span> Talenti</h2>';
-    if (talents.length === 0) {
-      html += `<div class="empty">Nessun talento trovato per ${cls} al livello ${lv}</div>`;
-    } else {
-      let currentLv = 0;
-      for (const t of talents) {
-        if (t.level !== currentLv) {
-          if (currentLv !== 0) html += '</div>';
-          currentLv = t.level;
-          html += `<div class="talent-group"><div class="group-header">Talenti ${t.level}° Livello</div><div style="display:flex;flex-wrap:wrap;gap:4px;">`;
-        }
-        html += `<span class="talent-chip">${t.name}</span>`;
-      }
-      html += '</div></div>';
+    html += '<div class="card"><h2><span class="icon" style="background:var(--talent)"></span> Talenti di Classe — ' + esc(cls) + '</h2>';
+    if (classTalents.length === 0) {
+      html += `<div class="empty">Nessun talento di classe trovato per ${cls} al livello ${lv}</div>`;
     }
+    html += renderTalentGroup(classTalents, `Talenti di ${cls}`, 'talent');
     html += '</div>';
+
+    if (stirpe) {
+      html += '<div class="card"><h2><span class="icon" style="background:var(--stirpe)"></span> Talenti di Stirpe — ' + esc(stirpe) + '</h2>';
+      if (stirpeTalents.length === 0) {
+        html += `<div class="empty">Nessun talento di stirpe trovato per ${stirpe} al livello ${lv}</div>`;
+      }
+      html += renderTalentGroup(stirpeTalents, `Talenti di Stirpe ${stirpe}`, 'stirpe');
+      html += '</div>';
+    }
+
+    if (abilitaTalents.length > 0) {
+      html += '<div class="card"><h2><span class="icon" style="background:var(--ability)"></span> Talenti di Abilità</h2>';
+      html += `<div style="font-size:0.72rem;color:var(--dim);margin-bottom:6px;">Disponibili al ${lv}° livello (richiedono addestramento nell'abilità)</div>`;
+      html += renderTalentGroup(abilitaTalents, 'Talenti di Abilità', 'ability');
+      html += '</div>';
+    }
+
+    if (genericoTalents.length > 0) {
+      html += '<div class="card"><h2><span class="icon" style="background:var(--generic)"></span> Talenti Generici</h2>';
+      html += `<div style="font-size:0.72rem;color:var(--dim);margin-bottom:6px;">Disponibili al ${lv}° livello (ottenuti al 3°, 7°, 11°, 15°, 19° livello)</div>`;
+      html += renderTalentGroup(genericoTalents, 'Talenti Generici', 'generic');
+      html += '</div>';
+    }
 
   } else if (currentTab === 'progression') {
     if (maxSpl === 0) {
@@ -388,15 +542,37 @@ function render() {
       }
       html += '</div></div>';
     }
+
+    html += '<div class="card"><h2><span class="icon" style="background:var(--talent)"></span> Progressione Talenti</h2>';
+    html += '<table class="progression-table"><thead><tr><th>Liv.</th><th>Classe</th><th>Abilità</th><th>Generico</th><th>Stirpe</th></tr></thead><tbody>';
+    for (let cl = 1; cl <= 20; cl++) {
+      const isActive = cl === lv;
+      const clsT = SKILL_TALENT_LEVELS.includes(cl) ? '✓' : '—';
+      const abT = cl >= 2 && cl % 2 === 0 ? '✓' : '—';
+      const gnT = GENERAL_TALENT_LEVELS.includes(cl) ? '✓' : '—';
+      const spT = STIRPE_TALENT_LEVELS.includes(cl) ? '✓' : '—';
+      html += `<tr style="${isActive ? 'background:rgba(233,69,96,0.15)' : ''}">`;
+      html += `<td style="font-weight:${isActive ? '700' : '400'};color:${isActive ? 'var(--accent)' : 'var(--text)'}">Lv${cl}</td>`;
+      html += `<td style="color:${clsT === '✓' ? 'var(--talent)' : 'var(--dim)'}">${clsT}</td>`;
+      html += `<td style="color:${abT === '✓' ? 'var(--ability)' : 'var(--dim)'}">${abT}</td>`;
+      html += `<td style="color:${gnT === '✓' ? 'var(--generic)' : 'var(--dim)'}">${gnT}</td>`;
+      html += `<td style="color:${spT === '✓' ? 'var(--stirpe)' : 'var(--dim)'}">${spT}</td>`;
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
   }
 
   document.getElementById('mainContent').innerHTML = html;
 
+  const totalTalents = classTalents.length + stirpeTalents.length + abilitaTalents.length + genericoTalents.length;
   document.getElementById('summaryBar').innerHTML = `
     <div class="summary-stat"><div class="num" style="color:var(--spell)">${commonAtLevel.length}</div><div class="lbl">Incantesimi</div></div>
     <div class="summary-stat"><div class="num" style="color:var(--focus)">${focusAtLevel.length}</div><div class="lbl">Focalizzati</div></div>
-    <div class="summary-stat"><div class="num" style="color:var(--talent)">${talents.length}</div><div class="lbl">Talenti</div></div>
-    <div class="summary-stat"><div class="num" style="color:var(--level)">${maxSpl > 0 ? maxSpl + '°' : '–'}</div><div class="lbl">Max Incantesimo</div></div>
+    <div class="summary-stat"><div class="num" style="color:var(--talent)">${classTalents.length}</div><div class="lbl">Talenti Classe</div></div>
+    <div class="summary-stat"><div class="num" style="color:var(--ability)">${abilitaTalents.length}</div><div class="lbl">Talenti Abilità</div></div>
+    <div class="summary-stat"><div class="num" style="color:var(--generic)">${genericoTalents.length}</div><div class="lbl">Generici</div></div>
+    ${stirpe ? `<div class="summary-stat"><div class="num" style="color:var(--stirpe)">${stirpeTalents.length}</div><div class="lbl">Stirpe</div></div>` : ''}
+    <div class="summary-stat"><div class="num" style="color:var(--level)">${maxSpl > 0 ? maxSpl + '°' : '–'}</div><div class="lbl">Max Incantesimi</div></div>
     <div class="summary-stat"><div class="num" style="color:var(--feature)">${classInfo.tradition || '-'}</div><div class="lbl">Tradizione</div></div>
   `;
 }

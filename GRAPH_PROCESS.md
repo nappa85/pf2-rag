@@ -5,7 +5,7 @@
 A traversable, queryable knowledge graph of abilities, talents, spells, classes, and stirpi from the Italian Pathfinder 2nd Edition rulebooks, built with [graphify](https://pypi.org/project/graphify/).
 
 **Current coverage:** Manuale di Gioco (core rulebook).
-**Graph stats:** 1787 nodes, 6421 links, 107 communities.
+**Graph stats:** 1810 nodes, 7746 links, 107 communities.
 
 ## Directory Layout
 
@@ -155,6 +155,30 @@ python graphify-scripts/04_rebuild.py
 graphify export html
 ```
 
+### Step 3b: Extract Skill/General Talents & Descriptions
+
+```bash
+python graphify-scripts/06_deepen_talents.py
+```
+
+Adds:
+- **117 skill/general talents** from the Abilità chapter (lines 16412–19331)
+- **Talent type classification** (`classe`, `stirpe`, `abilità`, `generico`) on all talent nodes
+- **Short descriptions** (first sentence) for ~504 nodes (talents, spells, classes, stirpi)
+- **Stirpe prerequisite links** (talento → abilità) from prerequisite text
+- **Skill feat level hubs** (`Talento di Abilità di N° Livello`) for levels 2,4,6,...,20
+- **General feat level hubs** (`Talento Generico di N° Livello`) for levels 3,7,11,15,19
+- Re-injects `level` and `talent_type` attributes lost during graph rebuild
+
+Talent classification logic:
+- **Classe**: linked to a class via `conceptually_related_to`
+- **Stirpe**: linked to a stirpe via `conceptually_related_to`
+- **Abilità**: has `ABILITÀ` trait in the Abilità chapter (98 talents)
+- **Generico**: has only `GENERICO` trait, no `ABILITÀ` (19 talents)
+
+Note: In PF2e, all skill feats also have the `GENERICO` trait. The `abilità` type takes
+precedence over `generico` when both traits are present.
+
 ### Step 4: Build Query UI
 
 ```bash
@@ -166,7 +190,12 @@ The query UI (`graphify-out/query.html`) is self-contained — graph JSON is
 embedded inline as a JS constant, so it works with `file://` with zero CORS
 issues. 4 tabs: Incantesimi per Livello, Incantesimi per Scuola, Talenti, Progressione.
 
-Non-casting classes show "non è un incantatore" instead of spell progression tables.
+Features:
+- **Stirpe selector** — optional ancestry filter; shows stirpe talents when selected
+- **Talent categories** — Talenti tab shows 4 sections: Classe, Stirpe, Abilità, Generici
+- **Descriptions on hover** — tooltip with first-sentence description + level on all chips
+- **Talent progression table** — shows when each talent type is gained per level
+- Non-casting classes show "non è un incantatore" instead of spell progression tables
 
 ## Graph Schema
 
@@ -189,6 +218,7 @@ Non-casting classes show "non è un incantatore" instead of spell progression ta
 | gains_at_level | Class gains feature at level | classe → privilegio |
 | unlocked_at | Feature unlocks at char level | privilegio → livello |
 | upgrades_to | Skill rank progression | rank → next rank |
+| has_talent_level | Talent's skill/general level tier | talento → livello talento abilità/generico |
 
 ### Key Structural Nodes
 
